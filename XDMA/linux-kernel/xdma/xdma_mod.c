@@ -82,7 +82,7 @@ static const struct pci_device_id pci_ids[] = {
 	{ PCI_DEVICE(0x10ee, 0x7018), },
 	{ PCI_DEVICE(0x10ee, 0x7021), },
 	{ PCI_DEVICE(0x10ee, 0x7022), },
-	{ PCI_DEVICE(0x10ee, 0x7024), },
+	{ PCI_DEVICE(0x10ee, 0x7024), }, // we are here
 	{ PCI_DEVICE(0x10ee, 0x7028), },
 	{ PCI_DEVICE(0x10ee, 0x7031), },
 	{ PCI_DEVICE(0x10ee, 0x7032), },
@@ -173,13 +173,13 @@ static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	if (xpdev->h2c_channel_max > XDMA_CHANNEL_NUM_MAX) {
-		pr_err("Maximun H2C channel limit reached\n");
+		pr_err("Maximum H2C channel limit reached\n");
 		rv = -EINVAL;
 		goto err_out;
 	}
 
 	if (xpdev->c2h_channel_max > XDMA_CHANNEL_NUM_MAX) {
-		pr_err("Maximun C2H channel limit reached\n");
+		pr_err("Maximum C2H channel limit reached\n");
 		rv = -EINVAL;
 		goto err_out;
 	}
@@ -301,7 +301,6 @@ static void xdma_error_resume(struct pci_dev *pdev)
 
 }
 
-#if KERNEL_VERSION(4, 13, 0) <= LINUX_VERSION_CODE
 static void xdma_reset_prepare(struct pci_dev *pdev)
 {
 	struct xdma_pci_dev *xpdev = dev_get_drvdata(&pdev->dev);
@@ -318,30 +317,12 @@ static void xdma_reset_done(struct pci_dev *pdev)
 	xdma_device_online(pdev, xpdev->xdev);
 }
 
-#elif KERNEL_VERSION(3, 16, 0) <= LINUX_VERSION_CODE
-static void xdma_reset_notify(struct pci_dev *pdev, bool prepare)
-{
-	struct xdma_pci_dev *xpdev = dev_get_drvdata(&pdev->dev);
-
-	pr_info("dev 0x%p,0x%p, prepare %d.\n", pdev, xpdev, prepare);
-
-	if (prepare)
-		xdma_device_offline(pdev, xpdev->xdev);
-	else
-		xdma_device_online(pdev, xpdev->xdev);
-}
-#endif
-
 static const struct pci_error_handlers xdma_err_handler = {
 	.error_detected	= xdma_error_detected,
 	.slot_reset	= xdma_slot_reset,
 	.resume		= xdma_error_resume,
-#if KERNEL_VERSION(4, 13, 0) <= LINUX_VERSION_CODE
 	.reset_prepare	= xdma_reset_prepare,
 	.reset_done	= xdma_reset_done,
-#elif KERNEL_VERSION(3, 16, 0) <= LINUX_VERSION_CODE
-	.reset_notify	= xdma_reset_notify,
-#endif
 };
 
 static struct pci_driver pci_driver = {
