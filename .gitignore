@@ -1,3 +1,5 @@
+.idea/
+
 *.ko
 *.o
 *.mod
