@@ -293,12 +293,7 @@ static void xdma_error_resume(struct pci_dev *pdev)
 	struct xdma_pci_dev *xpdev = dev_get_drvdata(&pdev->dev);
 
 	pr_info("dev 0x%p,0x%p.\n", pdev, xpdev);
-#if PCI_AER_NAMECHANGE
 	pci_aer_clear_nonfatal_status(pdev);
-#else
-	pci_cleanup_aer_uncorrect_error_status(pdev);
-#endif
-
 }
 
 static void xdma_reset_prepare(struct pci_dev *pdev)

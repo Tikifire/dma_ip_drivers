@@ -27,9 +27,7 @@
 #include <linux/wait.h>
 #include <linux/kthread.h>
 #include <linux/version.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
 #include <linux/uio.h>
-#endif
 #include "libxdma_api.h"
 #include "xdma_cdev.h"
 #include "cdev_sgdma.h"
@@ -103,23 +101,7 @@ static void async_io_handler(unsigned long  cb_hndl, int err)
 	if (caio->cmpl_cnt == caio->req_cnt) {
 		res = caio->res;
 		res2 = caio->res2;
-#if defined(RHEL_RELEASE_CODE)
-    #if (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 4))
-                caio->iocb->ki_complete(caio->iocb, caio->err_cnt ? res2 : res);
-    #elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)
-                caio->iocb->ki_complete(caio->iocb, caio->err_cnt ? res2 : res);
-    #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
-                caio->iocb->ki_complete(caio->iocb, res, res2);
-    #else
-                aio_complete(caio->iocb, res, res2);
-    #endif
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)
 		caio->iocb->ki_complete(caio->iocb, caio->err_cnt ? res2 : res);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
-		caio->iocb->ki_complete(caio->iocb, res, res2);
-#else
-		aio_complete(caio->iocb, res, res2);
-#endif
 skip_tran:
 		spin_unlock(&caio->lock);
 		kmem_cache_free(cdev_cache, caio);
@@ -130,23 +112,7 @@ skip_tran:
 	return;
 
 skip_dev_lock:
-#if defined(RHEL_RELEASE_CODE)
-    #if (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 4))
-        caio->iocb->ki_complete(caio->iocb, caio->err_cnt ? res2 : res);
-    #elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)
-        caio->iocb->ki_complete(caio->iocb, -EBUSY);
-    #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
-        caio->iocb->ki_complete(caio->iocb, numbytes, -EBUSY);
-    #else
-        aio_complete(caio->iocb, numbytes, -EBUSY);
-    #endif
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)
 	caio->iocb->ki_complete(caio->iocb, -EBUSY);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
-	caio->iocb->ki_complete(caio->iocb, numbytes, -EBUSY);
-#else
-	aio_complete(caio->iocb, numbytes, -EBUSY);
-#endif
 	kmem_cache_free(cdev_cache, caio);
 }
 
@@ -580,38 +546,15 @@ static ssize_t cdev_aio_read(struct kiocb *iocb, const struct iovec *io,
 	return -EIOCBQUEUED;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
 static ssize_t cdev_write_iter(struct kiocb *iocb, struct iov_iter *io)
 {
-#if defined(RHEL_RELEASE_CODE)
-        #if (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 4))
-            return cdev_aio_write(iocb, iter_iov(io), io->nr_segs, io->iov_offset);
-        #else
-            return cdev_aio_write(iocb, io->iov, io->nr_segs, io->iov_offset);
-        #endif
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
-        return cdev_aio_write(iocb, iter_iov(io), io->nr_segs, io->iov_offset);
-#else
-	return cdev_aio_write(iocb, io->iov, io->nr_segs, io->iov_offset);
-#endif
+    return cdev_aio_write(iocb, iter_iov(io), io->nr_segs, io->iov_offset);
 }
 
 static ssize_t cdev_read_iter(struct kiocb *iocb, struct iov_iter *io)
 {
-#if defined(RHEL_RELEASE_CODE)
-        #if (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 4))
-            return cdev_aio_read(iocb, iter_iov(io), io->nr_segs, io->iov_offset);
-        #else
-            return cdev_aio_read(iocb, io->iov, io->nr_segs, io->iov_offset);
-        #endif
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
-        return cdev_aio_read(iocb, iter_iov(io), io->nr_segs, io->iov_offset);
-#else
-        return cdev_aio_read(iocb, io->iov, io->nr_segs, io->iov_offset);
-#endif
+    return cdev_aio_read(iocb, iter_iov(io), io->nr_segs, io->iov_offset);
 }
-#endif
-
 
 static int ioctl_do_perf_start(struct xdma_engine *engine, unsigned long arg)
 {
@@ -930,17 +873,9 @@ static const struct file_operations sgdma_fops = {
 	.open = char_sgdma_open,
 	.release = char_sgdma_close,
 	.write = char_sgdma_write,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
 	.write_iter = cdev_write_iter,
-#else
-	.aio_write = cdev_aio_write,
-#endif
 	.read = char_sgdma_read,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
 	.read_iter = cdev_read_iter,
-#else
-	.aio_read = cdev_aio_read,
-#endif
 	.unlocked_ioctl = char_sgdma_ioctl,
 	.llseek = char_sgdma_llseek,
 };

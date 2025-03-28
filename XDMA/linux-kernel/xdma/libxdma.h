@@ -31,40 +31,12 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/workqueue.h>
-
-/* Add compatibility checking for RHEL versions */
-#if defined(RHEL_RELEASE_CODE)
-#	define ACCESS_OK_2_ARGS (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 0))
-#else
-#	define ACCESS_OK_2_ARGS (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0))
-#endif
-
-#if defined(RHEL_RELEASE_CODE)
-#	define HAS_MMIOWB (RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(8, 0))
-#else
-#	define HAS_MMIOWB (LINUX_VERSION_CODE <= KERNEL_VERSION(5, 1, 0))
-#endif
-
-#if defined(RHEL_RELEASE_CODE)
-#	define HAS_SWAKE_UP_ONE (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 0))
-#	define HAS_SWAKE_UP (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 0))
-#else
-#	define HAS_SWAKE_UP_ONE (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
-#	define HAS_SWAKE_UP (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0))
-#endif
-
-#if defined(RHEL_RELEASE_CODE)
-#	define PCI_AER_NAMECHANGE (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 3))
-#else
-#	define PCI_AER_NAMECHANGE (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
-#endif
-
-#if	HAS_SWAKE_UP
 #include <linux/swait.h>
-#endif
+
+#define HAS_SWAKE_UP (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0))
 
 /*
- *  if the config bar is fixed, the driver does not neeed to search through
+ *  if the config bar is fixed, the driver does not need to search through
  *  all of the bars
  */
 //#define XDMA_CONFIG_BAR_NUM	1
@@ -483,11 +455,7 @@ struct xdma_request_cb {
 
 	unsigned int sw_desc_idx;
 	unsigned int sw_desc_cnt;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
-        struct sw_desc sdesc[];
-#else
-	struct sw_desc sdesc[0];
-#endif
+    struct sw_desc sdesc[];
 };
 
 struct xdma_engine {
@@ -612,9 +580,6 @@ struct xdma_dev {
 	int irq_line;		/* flag if irq allocated successfully */
 	int msi_enabled;	/* flag if msi was enabled for the device */
 	int msix_enabled;	/* flag if msi-x was enabled for the device */
-#if KERNEL_VERSION(4, 12, 0) > LINUX_VERSION_CODE
-	struct msix_entry entry[32];	/* msi-x vector/entry table */
-#endif
 	struct xdma_user_irq user_irq[16];	/* user IRQ management */
 	unsigned int mask_irq_user;
 

@@ -770,10 +770,6 @@ static struct xdma_transfer *engine_start(struct xdma_engine *engine)
 	dbg_tfr("ioread32(0x%p) (dummy read flushes writes).\n",
 		&engine->regs->status);
 
-#if HAS_MMIOWB
-	mmiowb();
-#endif
-
 	rv = engine_start_mode_config(engine);
 	if (rv < 0) {
 		pr_err("Failed to start engine mode config\n");
@@ -1853,19 +1849,9 @@ static int enable_msi_msix(struct xdma_dev *xdev, struct pci_dev *pdev)
 		int req_nvec = xdev->c2h_channel_max + xdev->h2c_channel_max +
 			       xdev->user_max;
 
-#if KERNEL_VERSION(4, 12, 0) <= LINUX_VERSION_CODE
 		dbg_init("Enabling MSI-X\n");
 		rv = pci_alloc_irq_vectors(pdev, req_nvec, req_nvec,
 					   PCI_IRQ_MSIX);
-#else
-		int i;
-
-		dbg_init("Enabling MSI-X\n");
-		for (i = 0; i < req_nvec; i++)
-			xdev->entry[i].entry = i;
-
-		rv = pci_enable_msix(pdev, xdev->entry, req_nvec);
-#endif
 		if (rv < 0)
 			dbg_init("Couldn't enable MSI-X mode: %d\n", rv);
 
@@ -2027,11 +2013,7 @@ static int irq_msix_channel_setup(struct xdma_dev *xdev)
 	j = xdev->h2c_channel_max;
 	engine = xdev->engine_h2c;
 	for (i = 0; i < xdev->h2c_channel_max; i++, engine++) {
-#if KERNEL_VERSION(4, 12, 0) <= LINUX_VERSION_CODE
 		vector = pci_irq_vector(xdev->pdev, i);
-#else
-		vector = xdev->entry[i].vector;
-#endif
 		rv = request_irq(vector, xdma_channel_irq, 0, xdev->mod_name,
 				 engine);
 		if (rv) {
@@ -2045,11 +2027,7 @@ static int irq_msix_channel_setup(struct xdma_dev *xdev)
 
 	engine = xdev->engine_c2h;
 	for (i = 0; i < xdev->c2h_channel_max; i++, j++, engine++) {
-#if KERNEL_VERSION(4, 12, 0) <= LINUX_VERSION_CODE
 		vector = pci_irq_vector(xdev->pdev, j);
-#else
-		vector = xdev->entry[j].vector;
-#endif
 		rv = request_irq(vector, xdma_channel_irq, 0, xdev->mod_name,
 				 engine);
 		if (rv) {
@@ -2082,11 +2060,7 @@ static void irq_msix_user_teardown(struct xdma_dev *xdev)
 	prog_irq_msix_user(xdev, 1);
 
 	for (i = 0; i < xdev->user_max; i++, j++) {
-#if KERNEL_VERSION(4, 12, 0) <= LINUX_VERSION_CODE
 		u32 vector = pci_irq_vector(xdev->pdev, j);
-#else
-		u32 vector = xdev->entry[j].vector;
-#endif
 		dbg_init("user %d, releasing IRQ#%d\n", i, vector);
 		free_irq(vector, &xdev->user_irq[i]);
 	}
@@ -2100,11 +2074,7 @@ static int irq_msix_user_setup(struct xdma_dev *xdev)
 
 	/* vectors set in probe_scan_for_msi() */
 	for (i = 0; i < xdev->user_max; i++, j++) {
-#if KERNEL_VERSION(4, 12, 0) <= LINUX_VERSION_CODE
 		u32 vector = pci_irq_vector(xdev->pdev, j);
-#else
-		u32 vector = xdev->entry[j].vector;
-#endif
 		rv = request_irq(vector, xdma_user_irq, 0, xdev->mod_name,
 				 &xdev->user_irq[i]);
 		if (rv) {
@@ -2119,11 +2089,7 @@ static int irq_msix_user_setup(struct xdma_dev *xdev)
 	/* If any errors occur, free IRQs that were successfully requested */
 	if (rv) {
 		for (i--, j--; i >= 0; i--, j--) {
-#if KERNEL_VERSION(4, 12, 0) <= LINUX_VERSION_CODE
 			u32 vector = pci_irq_vector(xdev->pdev, j);
-#else
-			u32 vector = xdev->entry[j].vector;
-#endif
 			free_irq(vector, &xdev->user_irq[i]);
 		}
 	}
@@ -2920,13 +2886,8 @@ static void transfer_destroy(struct xdma_dev *xdev, struct xdma_transfer *xfer)
 		struct sg_table *sgt = xfer->sgt;
 
 		if (sgt->nents) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
-			pci_unmap_sg(xdev->pdev, sgt->sgl, sgt->nents,
-				     xfer->dir);
-#else
 			dma_unmap_sg(&xdev->pdev->dev, sgt->sgl, sgt->nents,
 				     xfer->dir);
-#endif
 			sgt->nents = 0;
 		}
 	}
@@ -3209,13 +3170,8 @@ ssize_t xdma_xfer_aperture(struct xdma_engine *engine, bool write, u64 ep_addr,
 	}
 
 	if (!dma_mapped) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
-		sgt->nents = pci_map_sg(xdev->pdev, sgt->sgl, sgt->orig_nents,
-					dir);
-#else
 		sgt->nents = dma_map_sg(&xdev->pdev->dev, sgt->sgl,
 					sgt->orig_nents, dir);
-#endif
 		if (!sgt->nents) {
 			pr_info("map sgl failed, sgt 0x%p.\n", sgt);
 			return -EIO;
@@ -3456,11 +3412,7 @@ ssize_t xdma_xfer_aperture(struct xdma_engine *engine, bool write, u64 ep_addr,
 
 unmap_sgl:
 	if (!dma_mapped && sgt->nents) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
-		pci_unmap_sg(xdev->pdev, sgt->sgl, sgt->orig_nents, dir);
-#else
 		dma_unmap_sg(&xdev->pdev->dev, sgt->sgl, sgt->orig_nents, dir);
-#endif
 		sgt->nents = 0;
 	}
 
@@ -3530,11 +3482,7 @@ ssize_t xdma_xfer_submit(void *dev_hndl, int channel, bool write, u64 ep_addr,
 	}
 
 	if (!dma_mapped) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
-		nents = pci_map_sg(xdev->pdev, sg, sgt->orig_nents, dir);
-#else
 		nents = dma_map_sg(&xdev->pdev->dev, sg, sgt->orig_nents, dir);
-#endif
 
 		if (!nents) {
 			pr_info("map sgl failed, sgt 0x%p.\n", sgt);
@@ -3691,11 +3639,7 @@ ssize_t xdma_xfer_submit(void *dev_hndl, int channel, bool write, u64 ep_addr,
 
 unmap_sgl:
 	if (!dma_mapped && sgt->nents) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
-		pci_unmap_sg(xdev->pdev, sgt->sgl, sgt->orig_nents, dir);
-#else
 		dma_unmap_sg(&xdev->pdev->dev, sgt->sgl, sgt->orig_nents, dir);
-#endif
 		sgt->nents = 0;
 	}
 
@@ -3816,11 +3760,7 @@ ssize_t xdma_xfer_completion(void *cb_hndl, void *dev_hndl, int channel,
 
 unmap_sgl:
 	if (!dma_mapped && sgt->nents) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
-		pci_unmap_sg(xdev->pdev, sgt->sgl, sgt->orig_nents, dir);
-#else
 		dma_unmap_sg(&xdev->pdev->dev, sgt->sgl, sgt->orig_nents, dir);
-#endif
 		sgt->nents = 0;
 	}
 
@@ -3894,11 +3834,7 @@ ssize_t xdma_xfer_submit_nowait(void *cb_hndl, void *dev_hndl, int channel,
 	}
 
 	if (!dma_mapped) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
-		nents = pci_map_sg(xdev->pdev, sg, sgt->orig_nents, dir);
-#else
 		nents = dma_map_sg(&xdev->pdev->dev, sg, sgt->orig_nents, dir);
-#endif
 		if (!nents) {
 			pr_info("map sgl failed, sgt 0x%p.\n", sgt);
 			return -EIO;
@@ -3938,13 +3874,8 @@ ssize_t xdma_xfer_submit_nowait(void *cb_hndl, void *dev_hndl, int channel,
 			pr_info("transfer_init failed\n");
 
 			if (!dma_mapped && sgt->nents) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
-				pci_unmap_sg(xdev->pdev, sgt->sgl,
-						sgt->orig_nents, dir);
-#else
 				dma_unmap_sg(&xdev->pdev->dev, sgt->sgl,
 						sgt->orig_nents, dir);
-#endif
 				sgt->nents = 0;
 			}
 
@@ -3991,11 +3922,7 @@ ssize_t xdma_xfer_submit_nowait(void *cb_hndl, void *dev_hndl, int channel,
 
 unmap_sgl:
 	if (!dma_mapped && sgt->nents) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
-		pci_unmap_sg(xdev->pdev, sgt->sgl, sgt->orig_nents, dir);
-#else
 		dma_unmap_sg(&xdev->pdev->dev, sgt->sgl, sgt->orig_nents, dir);
-#endif
 		sgt->nents = 0;
 	}
 
@@ -4243,31 +4170,15 @@ static int set_dma_mask(struct pci_dev *pdev)
 
 	dbg_init("sizeof(dma_addr_t) == %ld\n", sizeof(dma_addr_t));
 	/* 64-bit addressing capability for XDMA? */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) 
-#else
-	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) 
-#endif
-	{
+	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
 		/* query for DMA transfer */
 		/* @see Documentation/DMA-mapping.txt */
 		dbg_init("set_dma_mask(64)\n");
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
-		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-#endif
 		/* use 64-bit DMA */
 		dbg_init("Using a 64-bit DMA mask.\n");
-	} else 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) 
-#else
-	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32))) 
-#endif
-	{
+	} else
+	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32))) {
 		dbg_init("Could not set 64-bit DMA mask.\n");
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
-		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-#endif
 		/* use 32-bit DMA */
 		dbg_init("Using a 32-bit DMA mask.\n");
 	} else {
@@ -4420,25 +4331,10 @@ static int probe_engines(struct xdma_dev *xdev)
 	return 0;
 }
 
-#if KERNEL_VERSION(3, 5, 0) <= LINUX_VERSION_CODE
 static void pci_enable_capability(struct pci_dev *pdev, int cap)
 {
 	pcie_capability_set_word(pdev, PCI_EXP_DEVCTL, cap);
 }
-#else
-static void pci_enable_capability(struct pci_dev *pdev, int cap)
-{
-	u16 v;
-	int pos;
-
-	pos = pci_pcie_cap(pdev);
-	if (pos > 0) {
-		pci_read_config_word(pdev, pos + PCI_EXP_DEVCTL, &v);
-		v |= cap;
-		pci_write_config_word(pdev, pos + PCI_EXP_DEVCTL, v);
-	}
-}
-#endif
 
 void *xdma_device_open(const char *mname, struct pci_dev *pdev, int *user_max,
 		       int *h2c_channel_max, int *c2h_channel_max)
