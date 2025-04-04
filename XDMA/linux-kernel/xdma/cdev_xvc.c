@@ -90,9 +90,9 @@ static int xvc_shift_bits(void __iomem *base, u32 tms_bits, u32 tdi_bits,
 	return 0;
 }
 
-static long xvc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+static long xvc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct xdma_cdev *xcdev = (struct xdma_cdev *)filp->private_data;
+	struct xdma_cdev *xcdev = (struct xdma_cdev *)file->private_data;
 	struct xdma_dev *xdev;
 	struct xvc_ioc xvc_obj;
 	unsigned int opcode;

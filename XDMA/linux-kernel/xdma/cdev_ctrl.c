@@ -29,10 +29,10 @@
 /*
  * character device file operations for control bus (through control bridge)
  */
-static ssize_t char_ctrl_read(struct file *fp, char __user *buf, size_t count,
+static ssize_t char_ctrl_read(struct file *file, char __user *buf, size_t count,
 		loff_t *pos)
 {
-	struct xdma_cdev *xcdev = (struct xdma_cdev *)fp->private_data;
+	struct xdma_cdev *xcdev = (struct xdma_cdev *)file->private_data;
 	struct xdma_dev *xdev;
 	void __iomem *reg;
 	u32 w;
@@ -46,15 +46,17 @@ static ssize_t char_ctrl_read(struct file *fp, char __user *buf, size_t count,
 	/* only 32-bit aligned and 32-bit multiples */
 	if (*pos & 3)
 		return -EPROTO;
+
 	/* first address is BAR base plus file position offset */
 	reg = xdev->bar[xcdev->bar] + *pos;
 	//w = read_register(reg);
 	w = ioread32(reg);
 	dbg_sg("%s(@%p, count=%ld, pos=%d) value = 0x%08x\n",
 			__func__, reg, (long)count, (int)*pos, w);
+
 	rv = copy_to_user(buf, &w, 4);
 	if (rv)
-		dbg_sg("Copy to userspace failed but continuing\n");
+		pr_info("Copy to userspace failed but continuing\n");
 
 	*pos += 4;
 	return 4;
@@ -88,6 +90,7 @@ static ssize_t char_ctrl_write(struct file *file, const char __user *buf,
 			__func__, w, reg, (long)count, (int)*pos);
 	//write_register(w, reg);
 	iowrite32(w, reg);
+
 	*pos += 4;
 	return 4;
 }
@@ -122,9 +125,9 @@ static long version_ioctl(struct xdma_cdev *xcdev, void __user *arg)
 	return 0;
 }
 
-long char_ctrl_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+long char_ctrl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct xdma_cdev *xcdev = (struct xdma_cdev *)filp->private_data;
+	struct xdma_cdev *xcdev = (struct xdma_cdev *)file->private_data;
 	struct xdma_dev *xdev;
 	struct xdma_ioc_base ioctl_obj;
 	long result = 0;
@@ -214,11 +217,11 @@ int bridge_mmap(struct file *file, struct vm_area_struct *vma)
 	dbg_sg("mmap(): cdev->bar = %d\n", xcdev->bar);
 	dbg_sg("mmap(): xdev = 0x%p\n", xdev);
 	dbg_sg("mmap(): pci_dev = 0x%08lx\n", (unsigned long)xdev->pdev);
-	dbg_sg("off = 0x%lx, vsize 0x%lu, psize 0x%lu.\n", off, vsize, psize);
+	dbg_sg("off = 0x%lx, vsize 0x%lu, psize 0x%llu.\n", off, vsize, psize);
 	dbg_sg("start = 0x%llx\n",
 		(unsigned long long)pci_resource_start(xdev->pdev,
 		xcdev->bar));
-	dbg_sg("phys = 0x%lx\n", phys);
+	dbg_sg("phys = 0x%llx\n", phys);
 
 	if (vsize > psize)
 		return -EINVAL;
@@ -235,7 +238,7 @@ int bridge_mmap(struct file *file, struct vm_area_struct *vma)
 	/* make MMIO accessible to user space */
 	rv = io_remap_pfn_range(vma, vma->vm_start, phys >> PAGE_SHIFT,
 			vsize, vma->vm_page_prot);
-	dbg_sg("vma=0x%p, vma->vm_start=0x%lx, phys=0x%lx, size=%lu = %d\n",
+	dbg_sg("vma=0x%p, vma->vm_start=0x%lx, phys=0x%llx, size=%lu = %d\n",
 		vma, vma->vm_start, phys >> PAGE_SHIFT, vsize, rv);
 
 	if (rv)

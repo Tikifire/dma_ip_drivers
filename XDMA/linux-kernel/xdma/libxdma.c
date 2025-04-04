@@ -81,7 +81,6 @@ __ret; \
 })
 
 /* Kernel version adaptative code */
-#if HAS_SWAKE_UP_ONE
 /* since 4.18, using simple wait queues is not recommended
  * except for realtime constraint (see swait.h comments)
  * and will likely be removed in future kernel versions
@@ -91,20 +90,6 @@ __ret; \
 			swait_event_interruptible_timeout_exclusive
 #define _xlx_wait_event_interruptible \
 			swait_event_interruptible_exclusive
-#elif HAS_SWAKE_UP
-#define xlx_wake_up	swake_up
-#define _xlx_wait_event_interruptible_timeout \
-			swait_event_interruptible_timeout
-#define _xlx_wait_event_interruptible \
-			swait_event_interruptible
-#else
-#define xlx_wake_up	wake_up_interruptible
-#define _xlx_wait_event_interruptible_timeout \
-           wait_event_interruptible_timeout
-#define _xlx_wait_event_interruptible \
-			wait_event_interruptible
-#endif
-
 
 /*
  * xdma device management
@@ -1852,8 +1837,9 @@ static int enable_msi_msix(struct xdma_dev *xdev, struct pci_dev *pdev)
 		dbg_init("Enabling MSI-X\n");
 		rv = pci_alloc_irq_vectors(pdev, req_nvec, req_nvec,
 					   PCI_IRQ_MSIX);
-		if (rv < 0)
+		if (rv < 0) {
 			dbg_init("Couldn't enable MSI-X mode: %d\n", rv);
+		}
 
 		xdev->msix_enabled = 1;
 
@@ -1862,8 +1848,9 @@ static int enable_msi_msix(struct xdma_dev *xdev, struct pci_dev *pdev)
 		/* enable message signalled interrupts */
 		dbg_init("pci_enable_msi()\n");
 		rv = pci_enable_msi(pdev);
-		if (rv < 0)
+		if (rv < 0) {
 			dbg_init("Couldn't enable MSI mode: %d\n", rv);
+		}
 		xdev->msi_enabled = 1;
 
 	} else {
@@ -2103,10 +2090,12 @@ static int irq_msi_setup(struct xdma_dev *xdev, struct pci_dev *pdev)
 
 	xdev->irq_line = (int)pdev->irq;
 	rv = request_irq(pdev->irq, xdma_isr, 0, xdev->mod_name, xdev);
-	if (rv)
+	if (rv) {
 		dbg_init("Couldn't use IRQ#%d, %d\n", pdev->irq, rv);
-	else
+	}
+	else {
 		dbg_init("Using IRQ#%d with 0x%p\n", pdev->irq, xdev);
+	}
 
 	return rv;
 }
@@ -2144,10 +2133,12 @@ static int irq_legacy_setup(struct xdma_dev *xdev, struct pci_dev *pdev)
 	xdev->irq_line = (int)pdev->irq;
 	rv = request_irq(pdev->irq, xdma_isr, IRQF_SHARED, xdev->mod_name,
 			 xdev);
-	if (rv)
+	if (rv) {
 		dbg_init("Couldn't use IRQ#%d, %d\n", pdev->irq, rv);
-	else
+	}
+	else {
 		dbg_init("Using IRQ#%d with 0x%p\n", pdev->irq, xdev);
+	}
 
 	return rv;
 }
@@ -2634,12 +2625,13 @@ struct xdma_transfer *engine_cyclic_stop(struct xdma_engine *engine)
 		}
 
 		if (transfer->cyclic) {
-			if (engine->xdma_perf)
+			if (engine->xdma_perf) {
 				dbg_perf("Stopping perf transfer on %s\n",
 					 engine->name);
-			else
+			} else {
 				dbg_perf("Stopping cyclic transfer on %s\n",
 					 engine->name);
+			}
 			/* free up the buffer allocated for perf run */
 			if (engine->perf_buf_virt)
 				dma_free_coherent(&engine->xdev->pdev->dev,
@@ -2948,11 +2940,7 @@ static int transfer_init(struct xdma_engine *engine,
 	/* lock the engine state */
 	spin_lock_irqsave(&engine->lock, flags);
 	/* initialize wait queue */
-#if HAS_SWAKE_UP
 	init_swait_queue_head(&xfer->wq);
-#else
-	init_waitqueue_head(&xfer->wq);
-#endif
 
 	/* remember direction of transfer */
 	xfer->dir = engine->dir;
@@ -3211,11 +3199,7 @@ ssize_t xdma_xfer_aperture(struct xdma_engine *engine, bool write, u64 ep_addr,
 
 		/* initialize transfer */
 		memset(xfer, 0, sizeof(struct xdma_transfer));
-#if HAS_SWAKE_UP
 		init_swait_queue_head(&xfer->wq);
-#else
-		init_waitqueue_head(&xfer->wq);
-#endif
 		xfer->dir = engine->dir;
 		if (!dma_mapped)
 			xfer->flags = XFER_FLAG_NEED_UNMAP;
@@ -4027,11 +4011,7 @@ int xdma_performance_submit(struct xdma_dev *xdev, struct xdma_engine *engine)
 	transfer->cyclic = 1;
 
 	/* initialize wait queue */
-#if HAS_SWAKE_UP
 	init_swait_queue_head(&transfer->wq);
-#else
-	init_waitqueue_head(&transfer->wq);
-#endif
 
 	//printk("=== Descriptor print for PERF\n");
 	//transfer_dump(transfer);
@@ -4107,13 +4087,8 @@ static struct xdma_dev *alloc_dev_instance(struct pci_dev *pdev)
 		spin_lock_init(&engine->lock);
 		mutex_init(&engine->desc_lock);
 		INIT_LIST_HEAD(&engine->transfer_list);
-#if HAS_SWAKE_UP
 		init_swait_queue_head(&engine->shutdown_wq);
 		init_swait_queue_head(&engine->xdma_perf_wq);
-#else
-		init_waitqueue_head(&engine->shutdown_wq);
-		init_waitqueue_head(&engine->xdma_perf_wq);
-#endif
 	}
 
 	engine = xdev->engine_c2h;
@@ -4121,13 +4096,8 @@ static struct xdma_dev *alloc_dev_instance(struct pci_dev *pdev)
 		spin_lock_init(&engine->lock);
 		mutex_init(&engine->desc_lock);
 		INIT_LIST_HEAD(&engine->transfer_list);
-#if HAS_SWAKE_UP
 		init_swait_queue_head(&engine->shutdown_wq);
 		init_swait_queue_head(&engine->xdma_perf_wq);
-#else
-		init_waitqueue_head(&engine->shutdown_wq);
-		init_waitqueue_head(&engine->xdma_perf_wq);
-#endif
 	}
 
 	return xdev;

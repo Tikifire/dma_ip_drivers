@@ -84,12 +84,12 @@ struct xdma_pci_dev {
 	int h2c_channel_max;
 
 	unsigned int flags;
+
 	/* character device structures */
 	struct xdma_cdev ctrl_cdev;
 	struct xdma_cdev sgdma_c2h_cdev[XDMA_CHANNEL_NUM_MAX];
 	struct xdma_cdev sgdma_h2c_cdev[XDMA_CHANNEL_NUM_MAX];
 	struct xdma_cdev events_cdev[16];
-
 	struct xdma_cdev user_cdev;
 	struct xdma_cdev bypass_c2h_cdev[XDMA_CHANNEL_NUM_MAX];
 	struct xdma_cdev bypass_h2c_cdev[XDMA_CHANNEL_NUM_MAX];

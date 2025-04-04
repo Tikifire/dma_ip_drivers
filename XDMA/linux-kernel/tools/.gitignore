@@ -1,0 +1,5 @@
+reg_rw
+dma_to_device
+dma_from_device
+performance
+test_chrdev

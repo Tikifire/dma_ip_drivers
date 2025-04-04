@@ -30,6 +30,8 @@
 #include "xdma_cdev.h"
 #include "version.h"
 
+#include "xdma_fb.h"
+
 #define DRV_MODULE_NAME		"xdma"
 #define DRV_MODULE_DESC		"Xilinx XDMA Reference Driver"
 
@@ -222,6 +224,11 @@ static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	dev_set_drvdata(&pdev->dev, xpdev);
 
+	// initiate framebuffer driver for xdma
+	rv = xdma_register_framebuffer(pdev);
+	if (rv)
+		goto err_out;
+
 	return 0;
 
 err_out:
@@ -246,6 +253,9 @@ static void remove_one(struct pci_dev *pdev)
 	xpdev_free(xpdev);
 
 	dev_set_drvdata(&pdev->dev, NULL);
+
+	// unregister framebuffer driver for xdma
+	xdma_unregister_framebuffer(pdev);
 }
 
 static pci_ers_result_t xdma_error_detected(struct pci_dev *pdev,

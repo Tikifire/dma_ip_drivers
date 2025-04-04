@@ -232,6 +232,7 @@ static inline void xdma_io_cb_release(struct xdma_io_cb *cb)
 	memset(cb, 0, sizeof(*cb));
 }
 
+// free the pinned pages of user buf
 static void char_sgdma_unmap_user_buf(struct xdma_io_cb *cb, bool write)
 {
 	int i;
@@ -245,6 +246,8 @@ static void char_sgdma_unmap_user_buf(struct xdma_io_cb *cb, bool write)
 		if (cb->pages[i]) {
 			if (!write)
 				set_page_dirty_lock(cb->pages[i]);
+			// get_user_pages_fast could increase refcount
+			// need put_page to decrease refcount
 			put_page(cb->pages[i]);
 		} else
 			break;
@@ -257,6 +260,7 @@ static void char_sgdma_unmap_user_buf(struct xdma_io_cb *cb, bool write)
 	cb->pages = NULL;
 }
 
+// pin the pages of user buf
 static int char_sgdma_map_user_buf_to_sgl(struct xdma_io_cb *cb, bool write)
 {
 	struct sg_table *sgt = &cb->sgt;
@@ -337,7 +341,7 @@ err_out:
 	return rv;
 }
 
-static ssize_t char_sgdma_read_write(struct file *file, const char __user *buf,
+ssize_t char_sgdma_read_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *pos, bool write)
 {
 	int rv;
@@ -378,7 +382,8 @@ static ssize_t char_sgdma_read_write(struct file *file, const char __user *buf,
 	rv = char_sgdma_map_user_buf_to_sgl(&cb, write);
 	if (rv < 0)
 		return rv;
-
+	
+	// submit dma transfer request
 	res = xdma_xfer_submit(xdev, engine->channel, write, *pos, &cb.sgt,
 				0, write ? h2c_timeout_ms : c2h_timeout_ms);
 
@@ -601,11 +606,7 @@ static int ioctl_do_perf_start(struct xdma_engine *engine, unsigned long arg)
 	enable_perf(engine);
 	dbg_perf("transfer_size = %d\n", engine->xdma_perf->transfer_size);
 	/* initialize wait queue */
-#if HAS_SWAKE_UP
 	init_swait_queue_head(&engine->xdma_perf_wq);
-#else
-	init_waitqueue_head(&engine->xdma_perf_wq);
-#endif
 	rv = xdma_performance_submit(xdev, engine);
 	if (rv < 0)
 		pr_err("Failed to submit dma performance\n");

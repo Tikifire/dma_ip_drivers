@@ -166,12 +166,14 @@ int main(int argc, char **argv)
 			goto unmap;
 		}
 	}
+
 unmap:
 	map -= offset;
 	if (munmap(map, offset + 4) == -1) {
 		printf("Memory 0x%lx mapped failed: %s.\n",
 			target, strerror(errno));
 	}
+
 close:
 	close(fd);
 

@@ -33,8 +33,6 @@
 #include <linux/workqueue.h>
 #include <linux/swait.h>
 
-#define HAS_SWAKE_UP (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0))
-
 /*
  *  if the config bar is fixed, the driver does not need to search through
  *  all of the bars
@@ -421,11 +419,7 @@ struct xdma_transfer {
 	int desc_cmpl;			/* completed descriptors */
 	int desc_cmpl_th;		/* completed descriptor threshold */
 	enum dma_data_direction dir;
-#if	HAS_SWAKE_UP
-	struct swait_queue_head wq;
-#else
-	wait_queue_head_t wq;		/* wait queue for transfer completion */
-#endif
+	struct swait_queue_head wq; /* wait queue for transfer completion */
 
 	enum transfer_state state;	/* state of the transfer */
 	unsigned int flags;
@@ -504,11 +498,7 @@ struct xdma_engine {
 	dma_addr_t poll_mode_bus;	/* bus addr for descriptor writeback */
 
 	/* Members associated with interrupt mode support */
-#if	HAS_SWAKE_UP
-	struct swait_queue_head shutdown_wq;
-#else
-	wait_queue_head_t shutdown_wq;	/* wait queue for shutdown sync */
-#endif
+	struct swait_queue_head shutdown_wq; /* wait queue for shutdown sync */
 	spinlock_t lock;		/* protects concurrent access */
 	int prev_cpu;			/* remember CPU# of (last) locker */
 	int msix_irq_line;		/* MSI-X vector for this engine */
@@ -522,12 +512,8 @@ struct xdma_engine {
 	int desc_used;			/* total descriptors used */
 
 	/* for performance test support */
-	struct xdma_performance_ioctl *xdma_perf;	/* perf test control */
-#if	HAS_SWAKE_UP
-	struct swait_queue_head xdma_perf_wq;
-#else
-	wait_queue_head_t xdma_perf_wq;	/* Perf test sync */
-#endif
+	struct xdma_performance_ioctl *xdma_perf; /* perf test control */
+	struct swait_queue_head xdma_perf_wq; /* Perf test sync */
 
 	struct xdma_kthread *cmplthp;
 	/* completion status thread list for the queue */

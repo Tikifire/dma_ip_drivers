@@ -240,7 +240,7 @@ static int test_dma(char *devname, uint64_t addr, uint64_t aperture,
 			rc = ioctl(fpga_fd, IOCTL_XDMA_APERTURE_R, &io);
 			if (rc < 0 || io.error) {
 				fprintf(stderr,
-					"#%d: aperture R failed %d,%d.\n",
+					"#%ld: aperture R failed %ld,%d.\n",
 					i, rc, io.error);
 				goto out;
 			}
@@ -256,7 +256,7 @@ static int test_dma(char *devname, uint64_t addr, uint64_t aperture,
 		clock_gettime(CLOCK_MONOTONIC, &ts_end);
 
 		if (bytes_done < size) {
-			fprintf(stderr, "#%d: underflow %ld/%ld.\n",
+			fprintf(stderr, "#%ld: underflow %ld/%ld.\n",
 				i, bytes_done, size);
 			underflow = 1;
 		}
