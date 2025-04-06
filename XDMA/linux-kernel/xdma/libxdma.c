@@ -17,7 +17,7 @@
  * the file called "COPYING".
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s:%d: " fmt, __func__, __LINE__
 
 #include <linux/module.h>
 #include <linux/kernel.h>

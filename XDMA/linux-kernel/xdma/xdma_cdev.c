@@ -17,7 +17,7 @@
  * the file called "COPYING".
  */
 
-#define pr_fmt(fmt)     KBUILD_MODNAME ":%s: " fmt, __func__
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s:%d: " fmt, __func__, __LINE__
 
 #include "xdma_cdev.h"
 
@@ -348,13 +348,19 @@ static int create_xcdev(struct xdma_pci_dev *xpdev, struct xdma_cdev *xcdev,
 		break;
 	case CHAR_BYPASS:
 		minor = 100;
+		if (!xcdev->engine) pr_info("CHAR_BYPASS engine null!!!\n");
 		cdev_bypass_init(xcdev);
+		if (!xcdev->engine) pr_info("CHAR_BYPASS engine null!!!\n");
 		break;
 	default:
 		pr_info("type 0x%x NOT supported.\n", type);
 		return -EINVAL;
 	}
+
 	xcdev->cdevno = MKDEV(xpdev->major, minor);
+
+	dbg_init("xcdev 0x%p, %u:%u, %s, type 0x%x.\n",
+		xcdev, xpdev->major, minor, xcdev->cdev.kobj.name, type);
 
 	/* bring character device live */
 	rv = cdev_add(&xcdev->cdev, xcdev->cdevno, 1);
@@ -362,9 +368,6 @@ static int create_xcdev(struct xdma_pci_dev *xpdev, struct xdma_cdev *xcdev,
 		pr_err("cdev_add failed %d, type 0x%x.\n", rv, type);
 		goto unregister_region;
 	}
-
-	dbg_init("xcdev 0x%p, %u:%u, %s, type 0x%x.\n",
-		xcdev, xpdev->major, minor, xcdev->cdev.kobj.name, type);
 
 	/* create device on our class */
 	if (g_xdma_class) {

@@ -17,7 +17,7 @@
  * the file called "COPYING".
  */
 
-#define pr_fmt(fmt)     KBUILD_MODNAME ":%s: " fmt, __func__
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s:%d: " fmt, __func__, __LINE__
 
 #include "xdma_cdev.h"
 #include "cdev_xvc.h"
@@ -241,7 +241,7 @@ void cdev_xvc_init(struct xdma_cdev *xcdev)
 #else
 	xcdev->base = XVC_BAR_OFFSET_DFLT;
 #endif
-	pr_info("xcdev 0x%p, bar %u, offset 0x%lx.\n",
-		xcdev, xcdev->bar, xcdev->base);
+	pr_info("xcdev %s, bar %d, offset 0x%lx\n",
+		xcdev->cdev.kobj.name, xcdev->bar, xcdev->base);
 	cdev_init(&xcdev->cdev, &xvc_fops);
 }

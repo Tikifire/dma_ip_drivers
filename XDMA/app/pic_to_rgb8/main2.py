@@ -27,3 +27,5 @@ with mss.mss() as sct:
         subprocess.Popen(command)
         time.sleep(1/30)
 '''
+
+# sudo ../../linux-kernel/tools/dma_to_device -d /dev/xdma0_h2c_0 -s 6220800 -a 0x0 -c 1 -f ./output3

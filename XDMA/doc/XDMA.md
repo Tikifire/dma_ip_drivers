@@ -148,6 +148,22 @@ enum cdev_type {
 };
 ```
 
+CHAR_USER对应m_axi_lite
+
+CHAR_CTRL
+
+CHAR_XVC
+
+CHAR_EVENTS
+
+CHAR_XDMA_H2C和CHAR_XDMA_C2H对应m_axi的DMA
+
+CHAR_BYPASS是真的m_axi_bypass，CHAR_BYPASS_H2C和CHAR_BYPASS_C2H具体情况未知
+
+实际测试中，/dev/xdma0_bypass_h2c_0和xdma0_bypass_c2h_0是r/w到m_axi_lite上的，xdma0_bypass_h2c_1和xdma0_bypass_c2h_1都会出现mapped failed
+
+char_bypass_write和char_bypass_read的实现疑似有问题，/dev/xdma0_bypass在目前的代码中，它的engine是null的
+
 
 ### 中断处理
 #### Legacy Interrupts

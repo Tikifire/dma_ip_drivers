@@ -16,7 +16,8 @@
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
  */
-#define pr_fmt(fmt)	KBUILD_MODNAME ":%s: " fmt, __func__
+
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s:%d: " fmt, __func__, __LINE__
 
 #include "libxdma_api.h"
 #include "xdma_cdev.h"
@@ -133,6 +134,9 @@ static ssize_t char_bypass_write(struct file *file, const char __user *buf,
 	xdev = xcdev->xdev;
 	engine = xcdev->engine;
 
+	if (!xcdev->engine) pr_info("%s engine null!!!\n", xcdev->cdev.kobj.name);
+	else pr_info("%s engine is not null!!!\n", xcdev->cdev.kobj.name);
+
 	if (count & 3) {
 		dbg_sg("Buffer size must be a multiple of 4 bytes\n");
 		return -EINVAL;
@@ -161,8 +165,7 @@ static ssize_t char_bypass_write(struct file *file, const char __user *buf,
 		copy_err = copy_from_user(&desc_data, &buf[buf_offset],
 			sizeof(u32));
 		if (!copy_err) {
-			write_register(desc_data, bypass_addr,
-					bypass_addr - engine->bypass_offset);
+			write_register(desc_data, bypass_addr, bypass_addr - engine->bypass_offset);
 			buf_offset += sizeof(u32);
 			rc = buf_offset;
 		} else {
@@ -174,7 +177,6 @@ static ssize_t char_bypass_write(struct file *file, const char __user *buf,
 
 	spin_unlock(&engine->lock);
 
-
 	return rc;
 }
 
@@ -182,7 +184,6 @@ static ssize_t char_bypass_write(struct file *file, const char __user *buf,
 /*
  * character device file operations for bypass operation
  */
-
 static const struct file_operations bypass_fops = {
 	.owner = THIS_MODULE,
 	.open = char_open,
@@ -194,5 +195,6 @@ static const struct file_operations bypass_fops = {
 
 void cdev_bypass_init(struct xdma_cdev *xcdev)
 {
+	pr_info("xcdev %s, bar %d\n", xcdev->cdev.kobj.name, xcdev->bar);
 	cdev_init(&xcdev->cdev, &bypass_fops);
 }

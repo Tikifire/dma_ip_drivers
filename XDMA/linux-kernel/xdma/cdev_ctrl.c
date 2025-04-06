@@ -17,7 +17,7 @@
  * the file called "COPYING".
  */
 
-#define pr_fmt(fmt)     KBUILD_MODNAME ":%s: " fmt, __func__
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s:%d: " fmt, __func__, __LINE__
 
 #include <linux/ioctl.h>
 #include "version.h"
@@ -261,5 +261,6 @@ static const struct file_operations ctrl_fops = {
 
 void cdev_ctrl_init(struct xdma_cdev *xcdev)
 {
+	pr_info("xcdev %s, bar %d\n", xcdev->cdev.kobj.name, xcdev->bar);
 	cdev_init(&xcdev->cdev, &ctrl_fops);
 }

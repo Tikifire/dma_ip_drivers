@@ -17,7 +17,7 @@
  * the file called "COPYING".
  */
 
-#define pr_fmt(fmt)     KBUILD_MODNAME ":%s: " fmt, __func__
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s:%d: " fmt, __func__, __LINE__
 
 #include <linux/types.h>
 #include <asm/cacheflush.h>
@@ -341,7 +341,7 @@ err_out:
 	return rv;
 }
 
-ssize_t char_sgdma_read_write(struct file *file, const char __user *buf,
+static ssize_t char_sgdma_read_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *pos, bool write)
 {
 	int rv;
@@ -883,5 +883,6 @@ static const struct file_operations sgdma_fops = {
 
 void cdev_sgdma_init(struct xdma_cdev *xcdev)
 {
+	pr_info("xcdev %s, bar %d\n", xcdev->cdev.kobj.name, xcdev->bar);
 	cdev_init(&xcdev->cdev, &sgdma_fops);
 }

@@ -17,7 +17,7 @@
  * the file called "COPYING".
  */
 
-#define pr_fmt(fmt)     KBUILD_MODNAME ":%s: " fmt, __func__
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s:%d: " fmt, __func__, __LINE__
 
 #include "xdma_cdev.h"
 
@@ -118,5 +118,7 @@ static const struct file_operations events_fops = {
 void cdev_event_init(struct xdma_cdev *xcdev)
 {
 	xcdev->user_irq = &(xcdev->xdev->user_irq[xcdev->bar]);
+
+	pr_info("xcdev %s, bar %d\n", xcdev->cdev.kobj.name, xcdev->bar);
 	cdev_init(&xcdev->cdev, &events_fops);
 }
